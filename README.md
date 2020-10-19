@@ -85,7 +85,172 @@ array([[ 0.        ,  0.        , -0.78162497,  0.        ],
        [ 0.        ,  0.        ,  0.        ,  1.        ]])
 ```
 
-### Labeling Errors
+## Use notebook to visualize slices
+
+```python
+import numpy as np 
+from starter_code.visualize import visualize, get_vol_seg_ims
+from PIL import Image
+```
+
+
+```python
+plane = ["axial", "coronal", "sagittal"]
+cid = "case_00005"
+```
+
+
+```python
+vol, seg, vol_ims, seg_ims = get_vol_seg_ims(cid)
+```
+
+### Get axial slices
+
+
+```python
+viz_imgs_axial = visualize(cid, ".", plane=plane[0])
+viz_imgs_axial.shape
+```
+
+
+
+
+    (834, 512, 512, 3)
+
+
+
+### Get coronal slices
+
+
+```python
+viz_imgs_coronal = visualize(cid, ".", plane=plane[1])
+viz_imgs_coronal.shape
+```
+
+
+
+
+    (512, 512, 427, 3)
+
+
+
+### Get sagittal slices
+
+
+```python
+viz_imgs_sagittal = visualize(cid, ".", plane=plane[2])
+viz_imgs_sagittal.shape
+```
+
+
+
+
+    (512, 512, 427, 3)
+
+
+
+### Visualize
+
+
+```python
+j=340
+print(viz_imgs_coronal[j].shape)
+Image.fromarray(viz_imgs_coronal[j].astype(np.int8), 'RGB')
+```
+
+    (512, 427, 3)
+
+
+
+
+
+![png](example_images/output_10_1.png)
+
+
+
+
+```python
+i = 300
+print(viz_imgs_sagittal[i].shape)
+Image.fromarray(viz_imgs_sagittal[i].astype(np.int8), 'RGB')
+```
+
+    (512, 427, 3)
+
+
+
+
+
+![png](example_images/output_11_1.png)
+
+
+
+
+```python
+Image.fromarray(viz_imgs_axial[300].astype(np.int8), 'RGB')
+```
+
+
+
+
+![png](example_images/output_12_0.png)
+
+
+
+### Shape of volume
+
+
+```python
+vol_ims.shape
+```
+
+
+
+
+    (834, 512, 512, 3)
+
+
+
+
+```python
+index = 300
+slice_image = vol_ims[index].astype('uint8')
+print(slice_image.shape)
+Image.fromarray(slice_image, 'RGB')
+```
+
+    (512, 512, 3)
+
+
+
+
+
+![png](example_images/output_15_1.png)
+
+
+
+
+```python
+slice_image = seg_ims[index].astype('uint8')
+print(slice_image.shape)
+print("Kidney:{}".format(np.sum((seg_ims[index][:,:,0].astype('uint8') == 255))/(slice_image.shape[0]*slice_image.shape[1])))
+print("Tumor:{}".format(np.sum((seg_ims[index][:,:,2].astype('uint8') == 255))/(slice_image.shape[0]*slice_image.shape[1])))
+Image.fromarray(slice_image, 'RGB')
+```
+
+    (512, 512, 3)
+    Kidney:0.014556884765625
+    Tumor:0.00597381591796875
+
+
+
+
+
+![png](example_images/output_16_1.png)
+
+
+
+## Labeling Errors
 
 We've gone to great lengths to produce the best segmentation labels that we could. That said, *we're certainly not perfect*. In an attempt to strike a balance between quality and stability, we've decided on the following policy: 
 
