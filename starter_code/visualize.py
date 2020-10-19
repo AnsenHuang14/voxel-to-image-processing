@@ -4,7 +4,8 @@ import argparse
 import scipy.misc
 import numpy as np
 from imageio import imwrite
-
+import PIL
+from PIL import Image
 from starter_code.utils import load_case
 
 
@@ -56,6 +57,19 @@ def overlay(volume_ims, segmentation_ims, segmentation, alpha):
     )
     return overlayed
 
+def get_vol_seg_ims(cid, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX, 
+    k_color=DEFAULT_KIDNEY_COLOR, t_color=DEFAULT_TUMOR_COLOR):
+    # Load segmentation and volume
+    vol, seg = load_case(cid)
+    spacing = vol.affine
+    vol = vol.get_data()
+    seg = seg.get_data()
+    seg = seg.astype(np.int32)
+    
+    # Convert to a visual format
+    vol_ims = hu_to_grayscale(vol, hu_min, hu_max)
+    seg_ims = class_to_color(seg, k_color, t_color)
+    return vol, seg, vol_ims, seg_ims
 
 def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX, 
     k_color=DEFAULT_KIDNEY_COLOR, t_color=DEFAULT_TUMOR_COLOR,
@@ -85,14 +99,16 @@ def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX,
     # Convert to a visual format
     vol_ims = hu_to_grayscale(vol, hu_min, hu_max)
     seg_ims = class_to_color(seg, k_color, t_color)
-    
+
+    output_viz_ims = []
     # Save individual images to disk
     if plane == plane_opts[0]:
         # Overlay the segmentation colors
         viz_ims = overlay(vol_ims, seg_ims, seg, alpha)
         for i in range(viz_ims.shape[0]):
             fpath = out_path / ("{:05d}.png".format(i))
-            imwrite(str(fpath), viz_ims[i])
+            output_viz_ims.append(viz_ims[i])
+            # imwrite(str(fpath), viz_ims[i])
 
     if plane == plane_opts[1]:
         # I use sum here to account for both legacy (incorrect) and 
@@ -100,26 +116,15 @@ def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX,
         spc_ratio = np.abs(np.sum(spacing[2,:]))/np.abs(np.sum(spacing[0,:]))
         for i in range(vol_ims.shape[1]):
             fpath = out_path / ("{:05d}.png".format(i))
-            vol_im = scipy.misc.imresize(
-                vol_ims[:,i,:], (
-                    int(vol_ims.shape[0]*spc_ratio),
-                    int(vol_ims.shape[2])
-                ), interp="bicubic"
-            )
-            seg_im = scipy.misc.imresize(
-                seg_ims[:,i,:], (
-                    int(vol_ims.shape[0]*spc_ratio),
-                    int(vol_ims.shape[2])
-                ), interp="nearest"
-            )
-            sim = scipy.misc.imresize(
-                seg[:,i,:], (
-                    int(vol_ims.shape[0]*spc_ratio),
-                    int(vol_ims.shape[2])
-                ), interp="nearest"
-            )
+            size = (int(vol_ims.shape[0]*spc_ratio), int(vol_ims.shape[2]))
+
+            vol_im = np.array(Image.fromarray(vol_ims[:,i,:].astype(np.uint8)).resize(size=size, resample=PIL.Image.BICUBIC))
+            seg_im = np.array(Image.fromarray(seg_ims[:,i,:].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+            sim = np.array(Image.fromarray(seg[:,i,:].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+
             viz_im = overlay(vol_im, seg_im, sim, alpha)
-            imwrite(str(fpath), viz_im)
+            output_viz_ims.append(viz_im)
+            # imwrite(str(fpath), viz_im)
 
     if plane == plane_opts[2]:
         # I use sum here to account for both legacy (incorrect) and 
@@ -127,27 +132,17 @@ def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX,
         spc_ratio = np.abs(np.sum(spacing[2,:]))/np.abs(np.sum(spacing[1,:]))
         for i in range(vol_ims.shape[2]):
             fpath = out_path / ("{:05d}.png".format(i))
-            vol_im = scipy.misc.imresize(
-                vol_ims[:,:,i], (
-                    int(vol_ims.shape[0]*spc_ratio),
-                    int(vol_ims.shape[1])
-                ), interp="bicubic"
-            )
-            seg_im = scipy.misc.imresize(
-                seg_ims[:,:,i], (
-                    int(vol_ims.shape[0]*spc_ratio),
-                    int(vol_ims.shape[1])
-                ), interp="nearest"
-            )
-            sim = scipy.misc.imresize(
-                seg[:,:,i], (
-                    int(vol_ims.shape[0]*spc_ratio),
-                    int(vol_ims.shape[1])
-                ), interp="nearest"
-            )
-            viz_im = overlay(vol_im, seg_im, sim, alpha)
-            imwrite(str(fpath), viz_im)
+            size = (int(vol_ims.shape[0]*spc_ratio), int(vol_ims.shape[1]))
 
+            vol_im = np.array(Image.fromarray(vol_ims[:,:,i].astype(np.uint8)).resize(size=size, resample=PIL.Image.BICUBIC))
+            seg_im = np.array(Image.fromarray(seg_ims[:,:,i].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+            sim = np.array(Image.fromarray(seg[:,:,i].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+            
+            viz_im = overlay(vol_im, seg_im, sim, alpha)
+            # imwrite(str(fpath), viz_im)
+            output_viz_ims.append(viz_im)
+    return np.array(output_viz_ims)
+    
 
 if __name__ == '__main__':
     # Parse command line arguments

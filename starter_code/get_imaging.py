@@ -28,16 +28,17 @@ def cleanup(bar, msg):
     print(msg)
     sys.exit()
 
-
+## case 36 done
 if __name__ == "__main__":
     left_to_download = []
     for i in range(300):
         if not get_destination(i).exists():
             left_to_download = left_to_download + [i]
-
+    print(left_to_download)
 
     print("{} cases to download...".format(len(left_to_download)))
     for i, cid in enumerate(left_to_download):
+
         print("Download {}/{}: ".format(
             i+1, len(left_to_download)
         ))
