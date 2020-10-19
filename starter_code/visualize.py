@@ -71,7 +71,7 @@ def get_vol_seg_ims(cid, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX,
     seg_ims = class_to_color(seg, k_color, t_color)
     return vol, seg, vol_ims, seg_ims
 
-def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX, 
+def nb_visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX, 
     k_color=DEFAULT_KIDNEY_COLOR, t_color=DEFAULT_TUMOR_COLOR,
     alpha=DEFAULT_OVERLAY_ALPHA, plane=DEFAULT_PLANE):
 
@@ -108,7 +108,6 @@ def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX,
         for i in range(viz_ims.shape[0]):
             fpath = out_path / ("{:05d}.png".format(i))
             output_viz_ims.append(viz_ims[i])
-            # imwrite(str(fpath), viz_ims[i])
 
     if plane == plane_opts[1]:
         # I use sum here to account for both legacy (incorrect) and 
@@ -124,7 +123,6 @@ def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX,
 
             viz_im = overlay(vol_im, seg_im, sim, alpha)
             output_viz_ims.append(viz_im)
-            # imwrite(str(fpath), viz_im)
 
     if plane == plane_opts[2]:
         # I use sum here to account for both legacy (incorrect) and 
@@ -139,9 +137,76 @@ def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX,
             sim = np.array(Image.fromarray(seg[:,:,i].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
             
             viz_im = overlay(vol_im, seg_im, sim, alpha)
-            # imwrite(str(fpath), viz_im)
             output_viz_ims.append(viz_im)
     return np.array(output_viz_ims)
+
+def visualize(cid, destination, hu_min=DEFAULT_HU_MIN, hu_max=DEFAULT_HU_MAX, 
+    k_color=DEFAULT_KIDNEY_COLOR, t_color=DEFAULT_TUMOR_COLOR,
+    alpha=DEFAULT_OVERLAY_ALPHA, plane=DEFAULT_PLANE):
+
+    plane = plane.lower()
+
+    plane_opts = ["axial", "coronal", "sagittal"]
+    if plane not in plane_opts:
+        raise ValueError((
+            "Plane \"{}\" not understood. " 
+            "Must be one of the following\n\n\t{}\n"
+        ).format(plane, plane_opts))
+
+    # Prepare output location
+    out_path = Path(destination)
+    if not out_path.exists():
+        out_path.mkdir()  
+
+    # Load segmentation and volume
+    vol, seg = load_case(cid)
+    spacing = vol.affine
+    vol = vol.get_data()
+    seg = seg.get_data()
+    seg = seg.astype(np.int32)
+    
+    # Convert to a visual format
+    vol_ims = hu_to_grayscale(vol, hu_min, hu_max)
+    seg_ims = class_to_color(seg, k_color, t_color)
+
+    output_viz_ims = []
+    # Save individual images to disk
+    if plane == plane_opts[0]:
+        # Overlay the segmentation colors
+        viz_ims = overlay(vol_ims, seg_ims, seg, alpha)
+        for i in range(viz_ims.shape[0]):
+            fpath = out_path / ("{:05d}.png".format(i))
+            imwrite(str(fpath), viz_ims[i])
+
+    if plane == plane_opts[1]:
+        # I use sum here to account for both legacy (incorrect) and 
+        # fixed affine matrices
+        spc_ratio = np.abs(np.sum(spacing[2,:]))/np.abs(np.sum(spacing[0,:]))
+        for i in range(vol_ims.shape[1]):
+            fpath = out_path / ("{:05d}.png".format(i))
+            size = (int(vol_ims.shape[0]*spc_ratio), int(vol_ims.shape[2]))
+
+            vol_im = np.array(Image.fromarray(vol_ims[:,i,:].astype(np.uint8)).resize(size=size, resample=PIL.Image.BICUBIC))
+            seg_im = np.array(Image.fromarray(seg_ims[:,i,:].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+            sim = np.array(Image.fromarray(seg[:,i,:].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+
+            viz_im = overlay(vol_im, seg_im, sim, alpha)
+            imwrite(str(fpath), viz_im)
+
+    if plane == plane_opts[2]:
+        # I use sum here to account for both legacy (incorrect) and 
+        # fixed affine matrices
+        spc_ratio = np.abs(np.sum(spacing[2,:]))/np.abs(np.sum(spacing[1,:]))
+        for i in range(vol_ims.shape[2]):
+            fpath = out_path / ("{:05d}.png".format(i))
+            size = (int(vol_ims.shape[0]*spc_ratio), int(vol_ims.shape[1]))
+
+            vol_im = np.array(Image.fromarray(vol_ims[:,:,i].astype(np.uint8)).resize(size=size, resample=PIL.Image.BICUBIC))
+            seg_im = np.array(Image.fromarray(seg_ims[:,:,i].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+            sim = np.array(Image.fromarray(seg[:,:,i].astype(np.uint8)).resize(size=size, resample=PIL.Image.NEAREST))
+            
+            viz_im = overlay(vol_im, seg_im, sim, alpha)
+            imwrite(str(fpath), viz_im)
     
 
 if __name__ == '__main__':
